@@ -1,0 +1,144 @@
+<?php
+
+/**
+ * Implements hook_menu()
+ */
+function uncache_menu() {
+  $items['admin/config/development/uncache'] = array(
+    'title' => 'Uncache',
+    'description' => 'Turn off Drupal page caching for specific pages.',
+    'page callback' => 'uncache_admin_settings',
+    'access arguments' => array('administer site configuration'),
+    'weight' => 50,
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/config/development/uncache/delete/%'] = array(
+    'title' => 'Delete Uncache Page',
+    'page callback' => 'uncache_delete_page',
+    'page arguments' => array(5),
+    'access arguments' => array('administer site configuration'),
+    'type' => MENU_CALLBACK,    
+  );
+  return $items;
+}
+
+function uncache_admin_settings() {
+  $output = array();
+  $output['form'] = drupal_get_form('uncache_form');
+  $output['table_heading'] = array(
+   '#markup' => '<br /><br /><h2>Pages that are currenly being Uncached</h2>',
+  );
+  $output['table'] = uncache_page_listing_table();
+  return $output;
+}
+
+function uncache_page_listing_table() {
+  if (db_table_exists('uncache_pages')) {
+    $result = db_query("SELECT path FROM uncache_pages");
+    $stored_paths = Array();
+    foreach ($result as $record) {
+      $path = $record->path;
+      $node_path = explode('/', $path);
+      $nid = $node_path[1];
+      $alias = drupal_get_path_alias($path);
+      $stored_paths[] = array (
+        'path' => '<a href="/' . $path . '" target="_blank">' . $path . '</a>',
+        'alias' => $alias,
+        'remove' => '<a href="/admin/config/development/uncache/delete/' . $nid . '">Remove this page from Uncache</a>',
+      );
+    }
+  }
+  return array (
+    '#theme' => 'table',
+    '#header' => array(
+      'path' => 'Path',
+      'alias' => 'Alias',
+      'remove' => 'Remove Page',
+    ),
+    '#rows' => $stored_paths,
+    '#empty' => t('No paths are currently being uncached'),
+  );
+}
+
+function uncache_delete_page($nid) {
+  if (db_table_exists('uncache_pages')) {
+    db_delete('uncache_pages')
+      ->condition('path', 'node/' . $nid)
+      ->execute();
+  }
+  drupal_set_message('node/' . $nid . ' has been removed from Uncache');
+  drupal_goto('admin/config/development/uncache');
+}
+
+/**
+ * Implements hook_form()
+ */
+function uncache_form($form, &$form_state){
+  $form['uncache_page'] = array(
+    '#title' => 'URL',
+    '#description' => "Web address for page that shouldn't be cached",
+    '#type' => 'textfield',
+    '#required' => TRUE,
+  );
+  $form['submit_button'] = array(
+    '#type' => 'submit',
+    '#value' => t('Uncache page'),
+  );
+  return $form;
+}
+
+/**
+ * Implements hook_submit()
+ */
+function uncache_form_submit($form, &$form_state){
+
+  $result = db_query("SELECT path FROM uncache_pages");
+  $stored_paths = Array();
+  foreach ($result as $record) {
+    $stored_paths[] = $record->path;
+  }
+
+  $input = $form_state['values']['uncache_page'];
+  if (drupal_valid_path($input)) {
+    $path = $input;
+    $alias = drupal_lookup_path('alias', $input);
+  }
+  elseif (drupal_valid_path(drupal_lookup_path('source', $input))) {
+    $path = drupal_lookup_path('source', $input);
+    $alias = $input;
+  }
+  else {
+    drupal_set_message('"' . $input . '" is not a valid path or alias', 'error');
+    return;
+  }
+
+  if (in_array($path, $stored_paths)) {
+    drupal_set_message("The page with path \"$path\" and alias \"$alias\" is already being uncached", 'error');
+    return;
+  }
+    
+  db_insert('uncache_pages')
+    ->fields(array(
+      'path' => $path))
+    ->execute();
+  drupal_set_message('The page with path "' . $path . '" and alias "'. $alias . '" has been uncached');
+
+}
+
+// Get array of all uncached paths
+if (db_table_exists('uncache_pages')) {
+  $result = db_query("SELECT path FROM uncache_pages");
+  $stored_paths = Array();
+  foreach ($result as $record) {
+    $stored_paths[] = $record->path;
+  }
+}
+// Logic that actually removes the page caching from specific page
+if (isset($stored_paths)) {
+  foreach ($stored_paths as $stored_path) {
+    if ( current_path() == $stored_path || current_path() == drupal_get_path_alias($stored_path) ) {
+      $GLOBALS['conf']['cache'] = FALSE; 
+      //drupal_set_message(t("This page is not being cached!"), 'warning');
+    }
+  }
+}

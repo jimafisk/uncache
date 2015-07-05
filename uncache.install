@@ -1,0 +1,25 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Install, update and uninstall functions for the Uncache module
+ */
+
+/**
+ * Implements hook_schema()
+ */
+function uncache_schema() {
+  $schema['uncache_pages'] = array (
+    'description' => 'Stores paths to pages that should have caching removed',
+    'fields' => array (
+      'path' => array (
+        'description' => 'The path to be uncached',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+    ),
+  );
+  return $schema;
+}

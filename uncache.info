@@ -1,0 +1,4 @@
+name = Uncache
+description = Allows you to use Drupal page caching but exclude certain paths
+core = 7.x
+package = Custom
