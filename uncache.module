@@ -17,7 +17,7 @@ function uncache_menu() {
     'page callback' => 'uncache_delete_page',
     'page arguments' => array(5),
     'access arguments' => array('administer site configuration'),
-    'type' => MENU_CALLBACK,    
+    'type' => MENU_CALLBACK,
   );
   return $items;
 }
@@ -44,7 +44,7 @@ function uncache_page_listing_table() {
       $stored_paths[] = array (
         'path' => '<a href="/' . $path . '" target="_blank">' . $path . '</a>',
         'alias' => $alias,
-        'remove' => '<a href="/admin/config/development/uncache/delete/' . $nid . '">Remove this page from Uncache</a>',
+        'remove' => '<a href="' . url("/admin/config/development/uncache/delete/$nid") . '">Remove this page from Uncache</a>',
       );
     }
   }
@@ -67,7 +67,8 @@ function uncache_delete_page($nid) {
       ->execute();
   }
   drupal_set_message('node/' . $nid . ' has been removed from Uncache');
-  drupal_goto('admin/config/development/uncache');
+  $options = array('fragment' => 'nl/admin/config/development/uncache');
+  drupal_goto("/admin/config/development/uncache", $options);
 }
 
 /**
@@ -116,7 +117,7 @@ function uncache_form_submit($form, &$form_state){
     drupal_set_message("The page with path \"$path\" and alias \"$alias\" is already being uncached", 'error');
     return;
   }
-    
+
   db_insert('uncache_pages')
     ->fields(array(
       'path' => $path))
@@ -137,7 +138,7 @@ if (db_table_exists('uncache_pages')) {
 if (isset($stored_paths)) {
   foreach ($stored_paths as $stored_path) {
     if ( current_path() == $stored_path || current_path() == drupal_get_path_alias($stored_path) ) {
-      $GLOBALS['conf']['cache'] = FALSE; 
+      $GLOBALS['conf']['cache'] = FALSE;
       //drupal_set_message(t("This page is not being cached!"), 'warning');
     }
   }
